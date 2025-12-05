@@ -13,9 +13,9 @@
 
 struct rgbColor
 {
-  uint8_t red;
-  uint8_t green;
-  uint8_t blue;
+    uint8_t red;
+    uint8_t green;
+    uint8_t blue;
 };
 
 struct lampSettings
@@ -28,16 +28,16 @@ struct lampSettings
 
 class WebVisu
 {
-    public:
+public:
     WebVisu();
     void init();
-    bool connectToWiFi(const char ssid[80],const  char password[80], IPAddress ip);
+    bool connectToWiFi(const char ssid[80], const char password[80], IPAddress ip);
     bool isConnected();
     bool handleClientRequest();
     bool getPowerState();
     lampSettings getLampSettings();
 
-    private:
+private:
     void extractSettings(char data[80]);
     WiFiServer server = WiFiServer(80);
     static char lastClientRequest[80];

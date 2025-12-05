@@ -15,18 +15,30 @@ Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ80
 // define strucxture for LED position
 struct ledPosition
 {
-  uint16_t index;
-  uint16_t posX;
-  uint16_t posY;
+    uint16_t index;
+    uint16_t posX;
+    uint16_t posY;
 };
 
 /* GLOBAL CONSTANTS */
 // Modes
-const uint8_t RAINBOW_FADE = 1;
-const uint8_t MONOCHROME_FADE = 2;
-const uint8_t SINGLE_COLOR = 3;
-const uint8_t WARM_WHITE = 4;
-const uint8_t RANDOM_COLOR = 5;
+const uint8_t MODE_RAINBOW_FADE = 1;
+const uint8_t MODE_WARM_COLOR_FADE = 2;
+const uint8_t MODE_COLD_COLOR_FADE = 3;
+const uint8_t MODE_RAIDIAL_RAINBOW_FADE = 4;
+const uint8_t MODE_RAIDIAL_WARM_COLOR_FADE = 5;
+const uint8_t MODE_RAIDIAL_COLD_COLOR_FADE = 6;
+const uint8_t MODE_MONOCHROME_FADE_RAINBOW = 7;
+const uint8_t MODE_MONOCHROME_FADE_WARM_COLOR = 8;
+const uint8_t MODE_MONOCHROME_FADE_COLD_COLOR = 9;
+const uint8_t MODE_RANDOM_COLOR = 10;
+const uint8_t MODE_SINGLE_COLOR = 11;
+const uint8_t MODE_WARM_WHITE = 12;
+// FadeTypes
+const uint8_t FADE_RAINBOW = 1;
+const uint8_t FADE_WARM_COLOR = 2;
+const uint8_t FADE_COLD_COLOR = 3;
+
 // define array of LED descript by there position
 const ledPosition LAMP_DEF[NUMPIXELS] PROGMEM = {
     {0, 140, 311},
@@ -118,8 +130,14 @@ const ledPosition LAMP_DEF[NUMPIXELS] PROGMEM = {
     {86, 792, 311}};
 
 /* GLOBAL VARIABLS*/
+// Minimal value for the x coordinate
+static uint16_t xMin;
 // Maximal value for the x coordinate
 static uint16_t xMax;
+// Minimal value for the y coordinate
+static uint16_t yMin;
+// Maximal value for the y coordinate
+static uint16_t yMax;
 // power status
 static bool powered;
 // current lamp settings
@@ -134,342 +152,482 @@ static uint32_t startTime;
 /* SETUP */
 void setup()
 {
-  delay(5000);
-  // Configure PWM frequency
-  analogWriteResolution(12);
+    delay(5000);
+    // Configure PWM frequency
+    analogWriteResolution(12);
 
-  uint8_t i;
-  ledPosition led;
-  bool wifiConnected;
+    uint8_t i;
+    ledPosition led;
+    bool wifiConnected;
 
-  // init pixels
-  pixels.begin();
-  pixels.clear();
-  pixels.setPixelColor(1, 0, 0, 255);
-  pixels.show();
-
-  // Get maximum x coordinate
-  for (i = 0; i < NUMPIXELS; i++)
-  {
-    led = GetLedPosition(i);
-    xMax = max(xMax, led.posX);
-  }
-
-  // connect to wifi
-  wifiConnected = userInterface.connectToWiFi(SECRET_SSID, SECRET_PASS, IP);
-
-  pixels.clear();
-  if (wifiConnected) // connection successful
-  {
-    pixels.setPixelColor(1, 0, 255, 0);
-    pixels.show();
-    delay(1000);
+    // init pixels
+    pixels.begin();
     pixels.clear();
+    pixels.setPixelColor(1, 0, 0, 255);
     pixels.show();
-  }
-  else // connection failed
-  {
-    pixels.setPixelColor(1, 255, 0, 0);
-    pixels.show();
-    while (true)
-    {
-      // Do nothing
-    }
-  }
 
-  userInterface.init();
-  startTime = millis();
+    // Get max values for coordinates
+    for (i = 0; i < NUMPIXELS; i++)
+    {
+        led = GetLedPosition(i);
+        xMax = max(xMax, led.posX);
+        yMax = max(yMax, led.posY);
+    }
+
+    // Get min values for coordinates
+    /*
+    xMin = xMax;
+    yMin = yMax;
+    for (i = 0; i < NUMPIXELS; i++)
+    {
+      led = GetLedPosition(i);
+      xMin = min(xMax, led.posX);
+      yMin = min(yMax, led.posY);
+    }
+    */
+    xMin = 0;
+    yMin = 0;
+
+    // connect to wifi
+    wifiConnected = userInterface.connectToWiFi(SECRET_SSID, SECRET_PASS, IP);
+
+    pixels.clear();
+    if (wifiConnected) // connection successful
+    {
+        pixels.setPixelColor(1, 0, 255, 0);
+        pixels.show();
+        delay(1000);
+        pixels.clear();
+        pixels.show();
+    }
+    else // connection failed
+    {
+        pixels.setPixelColor(1, 255, 0, 0);
+        pixels.show();
+        while (true)
+        {
+            // Do nothing
+        }
+    }
+
+    userInterface.init();
+    startTime = millis();
 }
 
 void loop()
 {
-  // check if still connected
-  if (userInterface.isConnected() == false)
-  {
-    bool wifiConnected = false;
-    wifiConnected = userInterface.connectToWiFi(SECRET_SSID, SECRET_PASS, IP);
-  }
-  // check for user input
-  userInterface.handleClientRequest();
-  powered = userInterface.getPowerState();
-  if (powered)
-  {
-    // get settings
-    settings = userInterface.getLampSettings();
-    stepSize = settings.speed;
-    delayTime = 50 - (settings.speed - 10);
-  }
-
-  // detect mode change
-  bool modeChanged;
-  static uint8_t modeOld;
-  if (settings.mode != modeOld)
-  {
-    modeChanged = true;
-    modeOld = settings.mode;
-  }
-  else
-  {
-    modeChanged = false;
-  }
-
-  // delay for animation
-  uint32_t currentTime = millis();
-  uint32_t lastUpdate = currentTime - startTime;
-  bool callAnimation;
-  if (lastUpdate > delayTime)
-  {
-    callAnimation = true;
-    startTime = currentTime;
-  }
-  else
-  {
-    callAnimation = false;
-  }
-
-  // lamp modes
-  if (powered)
-  {
-    switch (settings.mode)
+    // check if still connected
+    if (userInterface.isConnected() == false)
     {
-    case RAINBOW_FADE:
-      RainbowFade(stepSize);
-      break;
-    case MONOCHROME_FADE:
-      if (callAnimation)
-      {
-        MonochromeFade();
-      }
-      break;
-    case SINGLE_COLOR:
-      if (callAnimation)
-      {
-        SingelColor(settings.color);
-      }
-      break;
-    case WARM_WHITE:
-      if (callAnimation)
-      {
-        WarmWhite();
-      }
-      break;
-    case RANDOM_COLOR:
-      if (callAnimation)
-      {
-        RandomColor();
-      }
-      break;
+        bool wifiConnected = false;
+        wifiConnected = userInterface.connectToWiFi(SECRET_SSID, SECRET_PASS, IP);
     }
-  }
-  else
-  {
-    pixels.clear();
-  }
+    // check for user input
+    userInterface.handleClientRequest();
+    powered = userInterface.getPowerState();
+    if (powered)
+    {
+        // get settings
+        settings = userInterface.getLampSettings();
+        stepSize = settings.speed;
+        delayTime = 50 - (settings.speed - 10);
+    }
 
-  pixels.setBrightness(settings.brightness);
-  pixels.show();
+    // detect mode change
+    bool modeChanged;
+    static uint8_t modeOld;
+    if (settings.mode != modeOld)
+    {
+        modeChanged = true;
+        modeOld = settings.mode;
+    }
+    else
+    {
+        modeChanged = false;
+    }
+
+    // delay for animation
+    uint32_t currentTime = millis();
+    uint32_t lastUpdate = currentTime - startTime;
+    bool callAnimation;
+    if (lastUpdate > delayTime)
+    {
+        callAnimation = true;
+        startTime = currentTime;
+    }
+    else
+    {
+        callAnimation = false;
+    }
+
+    // lamp modes
+    if (powered)
+    {
+        switch (settings.mode)
+        {
+        case MODE_RAINBOW_FADE:
+            LinearFade(stepSize, FADE_RAINBOW);
+            break;
+
+        case MODE_WARM_COLOR_FADE:
+            LinearFade(stepSize, FADE_WARM_COLOR);
+            break;
+
+        case MODE_COLD_COLOR_FADE:
+            LinearFade(stepSize, FADE_COLD_COLOR);
+            break;
+
+        case MODE_RAIDIAL_RAINBOW_FADE:
+            RadialFade(stepSize, FADE_RAINBOW);
+            break;
+
+        case MODE_RAIDIAL_WARM_COLOR_FADE:
+            RadialFade(stepSize, FADE_WARM_COLOR);
+            break;
+
+        case MODE_RAIDIAL_COLD_COLOR_FADE:
+            RadialFade(stepSize, FADE_COLD_COLOR);
+            break;
+
+        case MODE_MONOCHROME_FADE_RAINBOW:
+            if (callAnimation)
+            {
+                MonochromeFade(FADE_RAINBOW);
+            }
+            break;
+
+        case MODE_MONOCHROME_FADE_WARM_COLOR:
+            if (callAnimation)
+            {
+                MonochromeFade(FADE_WARM_COLOR);
+            }
+            break;
+
+        case MODE_MONOCHROME_FADE_COLD_COLOR:
+            if (callAnimation)
+            {
+                MonochromeFade(FADE_COLD_COLOR);
+            }
+            break;
+
+        case MODE_RANDOM_COLOR:
+            if (callAnimation)
+            {
+                RandomColor();
+            }
+            break;
+
+        case MODE_SINGLE_COLOR:
+            if (callAnimation)
+            {
+                SingelColor(settings.color);
+            }
+            break;
+
+        case MODE_WARM_WHITE:
+            if (callAnimation)
+            {
+                WarmWhite();
+            }
+            break;
+        }
+    }
+    else
+    {
+        pixels.clear();
+    }
+
+    pixels.setBrightness(settings.brightness);
+    pixels.show();
 }
 
-void RainbowFade(uint16_t stepSize)
+void LinearFade(uint16_t stepSize, uint8_t fadeType)
 {
-  uint16_t pos, wheelPos;
-  uint8_t i;
-  static uint8_t j;
-  ledPosition led;
+    uint16_t pos, wheelPos;
+    uint8_t i;
+    static uint8_t j;
+    ledPosition led;
 
-  for (pos = 0; pos <= xMax + stepSize; pos = pos + stepSize)
-  {
-    wheelPos = uint16_t(float(255) / float(xMax) * float(pos));
+    for (pos = 0; pos <= xMax + stepSize; pos = pos + stepSize)
+    {
+        wheelPos = uint16_t(float(255) / float(xMax) * float(pos));
+        for (i = 0; i < NUMPIXELS; i++)
+        {
+            led = GetLedPosition(i);
+            if (pos - stepSize <= led.posX & led.posX <= pos)
+            {
+                switch (fadeType)
+                {
+                case FADE_RAINBOW:
+                    pixels.setPixelColor(led.index, ColorWheel((wheelPos - j) & 255));
+                    break;
+                case FADE_WARM_COLOR:
+                    pixels.setPixelColor(led.index, WarmColorWheel((wheelPos - j) & 255));
+                    break;
+                case FADE_COLD_COLOR:
+                    pixels.setPixelColor(led.index, ColdColorWheel((wheelPos - j) & 255));
+                    break;
+                }
+            }
+        }
+    }
+    j++;
+}
+
+void RadialFade(uint16_t stepSize, uint8_t fadeType)
+{
+    static uint8_t j = 0;
+    uint16_t centerX = (xMax - xMin) / 2;
+    uint16_t centerY = (yMax - yMin) / 2;
+    uint16_t maxDistance = max((xMax - centerX), (yMax - centerY));
+
+    for (uint16_t pos = 0; pos <= maxDistance + stepSize; pos = pos + stepSize)
+    {
+        uint16_t wheelPos = uint16_t(float(255) / float(maxDistance / 2) * float(pos));
+        for (uint8_t i = 0; i < NUMPIXELS; i++)
+        {
+            ledPosition led = GetLedPosition(i);
+
+            // Calculate distance from the center LED using Pythagorean theorem
+            int16_t distanceX = centerX - led.posX;
+            int16_t distanceY = centerY - led.posY;
+            uint16_t distance = sqrt(distanceX * distanceX + distanceY * distanceY);
+
+            if (pos - stepSize <= distance & distance <= pos)
+            {
+                switch (fadeType)
+                {
+                case FADE_RAINBOW:
+                    pixels.setPixelColor(led.index, ColorWheel((wheelPos - j) & 255));
+                    break;
+                case FADE_WARM_COLOR:
+                    pixels.setPixelColor(led.index, WarmColorWheel((wheelPos - j) & 255));
+                    break;
+                case FADE_COLD_COLOR:
+                    pixels.setPixelColor(led.index, ColdColorWheel((wheelPos - j) & 255));
+                    break;
+                }
+            }
+        }
+    }
+    j++;
+}
+
+void MonochromeFade(uint8_t fadeType)
+{
+    int8_t i;
+    static uint8_t j;
     for (i = 0; i < NUMPIXELS; i++)
     {
-      led = GetLedPosition(i);
-      if (pos - stepSize <= led.posX & led.posX <= pos)
-      {
-        pixels.setPixelColor(led.index, ColorWheel((wheelPos - j) & 255));
-      }
+        switch (fadeType)
+        {
+        case FADE_RAINBOW:
+            pixels.setPixelColor(i, ColorWheel(j & 255));
+            break;
+        case FADE_WARM_COLOR:
+            pixels.setPixelColor(i, WarmColorWheel(j & 255));
+            break;
+        case FADE_COLD_COLOR:
+            pixels.setPixelColor(i, ColdColorWheel(j & 255));
+            break;
+        }
     }
-  }
-  j++;
-}
-
-void MonochromeFade()
-{
-  int8_t i;
-  static uint8_t j;
-  for (i = 0; i < NUMPIXELS; i++)
-  {
-    pixels.setPixelColor(i, ColorWheel(j));
-  }
-  j++;
+    j++;
 }
 
 void SingelColor(rgbColor color)
 {
-  int8_t i;
-  for (i = 0; i < NUMPIXELS; i++)
-  {
-    pixels.setPixelColor(i, color.red, color.green, color.blue);
-  }
+    int8_t i;
+    for (i = 0; i < NUMPIXELS; i++)
+    {
+        pixels.setPixelColor(i, color.red, color.green, color.blue);
+    }
 }
 
 void WarmWhite()
 {
-  int8_t i;
-  for (i = 0; i < NUMPIXELS; i++)
-  {
-    pixels.setPixelColor(i, 253, 244, 220);
-  }
+    int8_t i;
+    for (i = 0; i < NUMPIXELS; i++)
+    {
+        pixels.setPixelColor(i, 253, 244, 220);
+    }
 }
 
 void RandomColor()
 {
-  uint8_t changeColor;
-  uint8_t selectedColor;
-  static rgbColor color;
-  uint32_t pixelColorPacked;
-  static rgbColor pixelColor[NUMPIXELS];
-  static rgbColor stepSize[NUMPIXELS];
-  static bool fade;
-  static uint8_t fadeStep;
+    uint8_t changeColor;
+    uint8_t selectedColor;
+    static rgbColor color;
+    uint32_t pixelColorPacked;
+    static rgbColor pixelColor[NUMPIXELS];
+    static rgbColor stepSize[NUMPIXELS];
+    static bool fade;
+    static uint8_t fadeStep;
 
-  changeColor = random(0, 250);
-  if (!fade)
-  {
-    if (changeColor == 0)
+    changeColor = random(0, 250);
+    if (!fade)
     {
-      fade = true;
-      fadeStep = 0;
-      selectedColor = random(1, 13);
-      switch (selectedColor)
-      {
-      case 1: // red
-        color.red = 255;
-        color.green = 0;
-        color.blue = 0;
-        break;
-      case 2: // rose
-        color.red = 255;
-        color.green = 0;
-        color.blue = 128;
-        break;
-      case 3: // magenta
-        color.red = 255;
-        color.green = 0;
-        color.blue = 255;
-        break;
-      case 4: // violet
-        color.red = 128;
-        color.green = 0;
-        color.blue = 255;
-        break;
-      case 5: // blue
-        color.red = 0;
-        color.green = 0;
-        color.blue = 255;
-        break;
-      case 6: // azure
-        color.red = 0;
-        color.green = 128;
-        color.blue = 255;
-        break;
-      case 7: // cyan
-        color.red = 0;
-        color.green = 255;
-        color.blue = 255;
-        break;
-      case 8: // spring green
-        color.red = 0;
-        color.green = 255;
-        color.blue = 128;
-        break;
-      case 9: // spring green
-        color.red = 0;
-        color.green = 255;
-        color.blue = 0;
-        break;
-      case 10: // chartreuse
-        color.red = 128;
-        color.green = 255;
-        color.blue = 0;
-        break;
-      case 11: // yellow
-        color.red = 255;
-        color.green = 255;
-        color.blue = 0;
-        break;
-      case 12: // orange
-        color.red = 255;
-        color.green = 128;
-        color.blue = 0;
-        break;
-      }
-      for (int i = 0; i < NUMPIXELS; i++)
-      {
-        pixelColorPacked = pixels.getPixelColor(i);
-        pixelColor[i].red = (pixelColorPacked >> (8 * 2)) & 0xff;
-        pixelColor[i].green = (pixelColorPacked >> (8 * 1)) & 0xff;
-        pixelColor[i].blue = (pixelColorPacked >> (8 * 0)) & 0xff;
-        stepSize[i].red = (color.red - pixelColor[i].red) / 49;
-        stepSize[i].green = (color.green - pixelColor[i].green) / 49;
-        stepSize[i].blue = (color.blue - pixelColor[i].blue) / 49;
-      }
+        if (changeColor == 0)
+        {
+            fade = true;
+            fadeStep = 0;
+            selectedColor = random(1, 13);
+            switch (selectedColor)
+            {
+            case 1: // red
+                color.red = 255;
+                color.green = 0;
+                color.blue = 0;
+                break;
+            case 2: // rose
+                color.red = 255;
+                color.green = 0;
+                color.blue = 128;
+                break;
+            case 3: // magenta
+                color.red = 255;
+                color.green = 0;
+                color.blue = 255;
+                break;
+            case 4: // violet
+                color.red = 128;
+                color.green = 0;
+                color.blue = 255;
+                break;
+            case 5: // blue
+                color.red = 0;
+                color.green = 0;
+                color.blue = 255;
+                break;
+            case 6: // azure
+                color.red = 0;
+                color.green = 128;
+                color.blue = 255;
+                break;
+            case 7: // cyan
+                color.red = 0;
+                color.green = 255;
+                color.blue = 255;
+                break;
+            case 8: // spring green
+                color.red = 0;
+                color.green = 255;
+                color.blue = 128;
+                break;
+            case 9: // spring green
+                color.red = 0;
+                color.green = 255;
+                color.blue = 0;
+                break;
+            case 10: // chartreuse
+                color.red = 128;
+                color.green = 255;
+                color.blue = 0;
+                break;
+            case 11: // yellow
+                color.red = 255;
+                color.green = 255;
+                color.blue = 0;
+                break;
+            case 12: // orange
+                color.red = 255;
+                color.green = 128;
+                color.blue = 0;
+                break;
+            }
+            for (int i = 0; i < NUMPIXELS; i++)
+            {
+                pixelColorPacked = pixels.getPixelColor(i);
+                pixelColor[i].red = (pixelColorPacked >> (8 * 2)) & 0xff;
+                pixelColor[i].green = (pixelColorPacked >> (8 * 1)) & 0xff;
+                pixelColor[i].blue = (pixelColorPacked >> (8 * 0)) & 0xff;
+                stepSize[i].red = (color.red - pixelColor[i].red) / 49;
+                stepSize[i].green = (color.green - pixelColor[i].green) / 49;
+                stepSize[i].blue = (color.blue - pixelColor[i].blue) / 49;
+            }
+        }
     }
-  }
-  else
-  {
-    for (int i = 0; i < NUMPIXELS; i++)
+    else
     {
-      if (fadeStep < 50)
-      {
-        pixelColor[i].red = pixelColor[i].red + stepSize[i].red;
-        pixelColor[i].green = pixelColor[i].green + stepSize[i].green;
-        pixelColor[i].blue = pixelColor[i].blue + stepSize[i].blue;
-        pixels.setPixelColor(i, pixelColor[i].red, pixelColor[i].green, pixelColor[i].blue);
-      }
-      else
-      {
-        pixels.setPixelColor(i, color.red, color.green, color.blue);
-        fade = false;
-      }
+        for (int i = 0; i < NUMPIXELS; i++)
+        {
+            if (fadeStep < 50)
+            {
+                pixelColor[i].red = pixelColor[i].red + stepSize[i].red;
+                pixelColor[i].green = pixelColor[i].green + stepSize[i].green;
+                pixelColor[i].blue = pixelColor[i].blue + stepSize[i].blue;
+                pixels.setPixelColor(i, pixelColor[i].red, pixelColor[i].green, pixelColor[i].blue);
+            }
+            else
+            {
+                pixels.setPixelColor(i, color.red, color.green, color.blue);
+                fade = false;
+            }
+        }
+        delay(100);
+        fadeStep++;
     }
-    delay(100);
-    fadeStep++;
-  }
 }
 
 uint32_t ColorWheel(byte wheelPos)
 {
-  const int factor = 3;
-  if (wheelPos < 85)
-  {
-    return pixels.Color(wheelPos * factor, 255 - wheelPos * factor, 0);
-  }
-  else if (wheelPos < 170)
-  {
-    wheelPos -= 85;
-    return pixels.Color(255 - wheelPos * factor, 0, wheelPos * factor);
-  }
-  else
-  {
-    wheelPos -= 170;
-    return pixels.Color(0, wheelPos * factor, 255 - wheelPos * factor);
-  }
+    const int factor = 3;
+    if (wheelPos < 85)
+    {
+        return pixels.Color(wheelPos * factor, 255 - wheelPos * factor, 0);
+    }
+    else if (wheelPos < 170)
+    {
+        wheelPos -= 85;
+        return pixels.Color(255 - wheelPos * factor, 0, wheelPos * factor);
+    }
+    else
+    {
+        wheelPos -= 170;
+        return pixels.Color(0, wheelPos * factor, 255 - wheelPos * factor);
+    }
+}
+
+uint32_t WarmColorWheel(byte wheelPos)
+{
+    if (wheelPos < 128)
+    {
+        return pixels.Color(255, (wheelPos * 2), 0);
+    }
+    else
+    {
+        wheelPos -= 128;
+        return pixels.Color(255, 255 - (wheelPos * 2), 0);
+    }
+}
+
+uint32_t ColdColorWheel(byte wheelPos)
+{
+    if (wheelPos < 128)
+    {
+        return pixels.Color(0, (wheelPos * 2), 255);
+    }
+    else
+    {
+        wheelPos -= 128;
+        return pixels.Color(0, 255 - (wheelPos * 2), 255);
+    }
 }
 
 ledPosition GetLedPosition(int i)
 {
-  ledPosition led;
-  led.index = pgm_read_word(&LAMP_DEF[i].index);
-  led.posX = pgm_read_word(&LAMP_DEF[i].posX);
-  led.posY = pgm_read_word(&LAMP_DEF[i].posY);
-  return led;
+    ledPosition led;
+    led.index = pgm_read_word(&LAMP_DEF[i].index);
+    led.posX = pgm_read_word(&LAMP_DEF[i].posX);
+    led.posY = pgm_read_word(&LAMP_DEF[i].posY);
+    return led;
 }
 
 rgbColor getRgbColor(uint32_t color)
 {
-  rgbColor resultColor;
-  resultColor.blue = (color) & 0xFF;
-  resultColor.green = (color >> 8) & 0xFF;
-  resultColor.red = (color >> 16) & 0xFF;
-  return resultColor;
+    rgbColor resultColor;
+    resultColor.blue = (color) & 0xFF;
+    resultColor.green = (color >> 8) & 0xFF;
+    resultColor.red = (color >> 16) & 0xFF;
+    return resultColor;
 }
