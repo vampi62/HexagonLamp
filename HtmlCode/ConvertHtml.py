@@ -10,39 +10,39 @@ def insertValue(destination, line: str, value: str, hexValue: bool):
         destination.write(temp)
         temp = "case 0x0 ... 0xF:\n"
         destination.write(temp)
-        temp = "\tclient.print(\"" + line[0:valueStartPos+1] +"#00000\");\n"
+        temp = "    client.print(\"" + line[0:valueStartPos+1] +"#00000\");\n"
         destination.write(temp)
-        temp = "\tbreak;\n"
+        temp = "    break;\n"
         destination.write(temp)
         temp = "case 0x1F ... 0xFF:\n"
         destination.write(temp)
-        temp = "\tclient.print(\"" + line[0:valueStartPos+1] +"#0000\");\n"
+        temp = "    client.print(\"" + line[0:valueStartPos+1] +"#0000\");\n"
         destination.write(temp)
-        temp = "\tbreak;\n"
+        temp = "    break;\n"
         destination.write(temp)
         temp = "case 0x1FF ... 0xFFF:\n"
         destination.write(temp)
-        temp = "\tclient.print(\"" + line[0:valueStartPos+1] +"#000\");\n"
+        temp = "    client.print(\"" + line[0:valueStartPos+1] +"#000\");\n"
         destination.write(temp)
-        temp = "\tbreak;\n"
+        temp = "    break;\n"
         destination.write(temp)
         temp = "case 0x1FFF ... 0xFFFF:\n"
         destination.write(temp)
-        temp = "\tclient.print(\"" + line[0:valueStartPos+1] +"#00\");\n"
+        temp = "    client.print(\"" + line[0:valueStartPos+1] +"#00\");\n"
         destination.write(temp)
-        temp = "\tbreak;\n"
+        temp = "    break;\n"
         destination.write(temp)
         temp = "case 0x1FFFF ... 0xFFFFF:\n"
         destination.write(temp)
-        temp = "\tclient.print(\"" + line[0:valueStartPos+1] +"#0\");\n"
+        temp = "    client.print(\"" + line[0:valueStartPos+1] +"#0\");\n"
         destination.write(temp)
-        temp = "\tbreak;\n"
+        temp = "    break;\n"
         destination.write(temp)
         temp = "case 0x1FFFFF ... 0xFFFFFF:\n"
         destination.write(temp)
-        temp = "\tclient.print(\"" + line[0:valueStartPos+1] +"#\");\n"
+        temp = "    client.print(\"" + line[0:valueStartPos+1] +"#\");\n"
         destination.write(temp)
-        temp = "\tbreak;\n"
+        temp = "    break;\n"
         destination.write(temp)
         temp = "}\n"
         destination.write(temp)
@@ -80,12 +80,12 @@ def buildSwitchCase(destination, options: str):
             else:
                 option = options[find_nth(options, "<option", j):]
             if (i == j):
-                temp = "\tclient.println(\"" + option[0:8] + "selected " + option[8:] + "\");\n"
+                temp = "    client.println(\"" + option[0:8] + "selected " + option[8:] + "\");\n"
                 destination.write(temp)
             else:
-                temp = "\tclient.println(\"" + option + "\");\n"
+                temp = "    client.println(\"" + option + "\");\n"
                 destination.write(temp)
-        temp = "\tbreak;\n"
+        temp = "    break;\n"
         destination.write(temp)
     temp = "}\n"
     destination.write(temp)
@@ -93,7 +93,7 @@ def buildSwitchCase(destination, options: str):
     return
 
 
-sourceFile = open("WebVisu.html", "r")
+sourceFile = open("HtmlCode\WebVisu.html", "r")
 htmlCode = sourceFile.readlines()
 htmlForArduino = ""
 for line in htmlCode:
@@ -103,7 +103,7 @@ for line in htmlCode:
     htmlForArduino = htmlForArduino + line
 sourceFile.close()
 
-destinatioFile = open("WebVisu.txt", "w")
+destinatioFile = open("HtmlCode\WebVisu.txt", "w")
 htmlLine = ""
 j = 0
 for i in htmlForArduino:

@@ -1,3 +1,5 @@
+import subprocess
+
 destinatioFile = open("WebVisu.cpp", "r")
 cppCode = destinatioFile.readlines()
 destinatioFile.close()
@@ -18,6 +20,7 @@ for line in cppCode:
         leadingSpace = ""
         for i in range(0, numberTabs):
             leadingSpace = leadingSpace + "    "
+        subprocess.run(["python", "HtmlCode\ConvertHtml.py"])
         sourceFile = open("HtmlCode\WebVisu.txt", "r")
         htmlCode = sourceFile.readlines()
         sourceFile.close()
