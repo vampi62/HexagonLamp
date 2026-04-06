@@ -2,7 +2,6 @@
 #include "Adafruit_NeoPixel.h"
 #include "WebVisu.hpp"
 #include "config.h"
-#include "ArduinoBLE.h"
 
 #define NUMPIXELS 87
 #define PIN 3

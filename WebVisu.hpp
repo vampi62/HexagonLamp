@@ -9,7 +9,18 @@
 
 #include <Arduino.h>
 #include <SPI.h>
-#include <WiFiNINA.h>
+#if defined(ESP32)
+  #include <WiFi.h> // Utilisez la bibliothèque WiFi pour ESP32
+  #define LED_PIN 15
+#elif defined(ESP8266)
+  #include <ESP8266WiFi.h> // Utilisez la bibliothèque ESP8266WiFi pour ESP8266
+  #define LED_PIN 2
+#elif defined(ARDUINO_ARCH_SAMD)
+  #include <WiFiNINA.h> // Utilisez la bibliothèque WiFiNINA pour Arduino Nano 33 IoT
+#else
+  #error "board not supported"
+#endif
+
 
 struct rgbColor
 {

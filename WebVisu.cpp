@@ -30,13 +30,31 @@ bool WebVisu::connectToWiFi(const char ssid[80], const char password[80], IPAddr
 
     if (ip != IPAddress(0, 0, 0, 0))
     {
-        WiFi.config(ip);
+        #ifdef ESP8266
+            WiFi.config(ip, IPAddress(255, 255, 255, 0), IPAddress(192, 168, 1, 1));
+        #elif defined(ESP32)
+            WiFi.config(ip, IPAddress(255, 255, 255, 0), IPAddress(192, 168, 1, 1));
+        #elif defined(ARDUINO_ARCH_SAMD)
+            WiFi.config(ip);
+        #endif
     }
-
+    
+    #ifdef ESP8266
+    if (WiFi.status() == WL_NO_SSID_AVAIL)
+    {
+        return false;
+    }
+    #elif defined(ESP32)
+    if (WiFi.status() == WL_NO_SSID_AVAIL)
+    {
+        return false;
+    }
+    #elif defined(ARDUINO_ARCH_SAMD)
     if (WiFi.status() == WL_NO_MODULE)
     {
         return false;
     }
+    #endif
 
     while (status != WL_CONNECTED)
     {
