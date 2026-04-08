@@ -2,9 +2,19 @@
 #include "Adafruit_NeoPixel.h"
 #include "WebVisu.hpp"
 #include "config.h"
+#include <ArduinoOTA.h>
+
+#if defined(ESP32)
+#define PIN 15
+#elif defined(ESP8266)
+#define PIN 2
+#elif defined(ARDUINO_ARCH_SAMD)
+#define PIN 3
+#else
+#error "board not supported"
+#endif
 
 #define NUMPIXELS 87
-#define PIN 3
 
 // WebVisu object
 WebVisu userInterface;
@@ -198,6 +208,11 @@ void setup()
         delay(1000);
         pixels.clear();
         pixels.show();
+#if defined(ESP32) || defined(ESP8266)
+        ArduinoOTA.begin();
+#elif defined(ARDUINO_ARCH_SAMD)
+        ArduinoOTA.begin(WiFi.localIP(), "Lamp", "", InternalStorage);
+#endif
     }
     else // connection failed
     {
@@ -224,6 +239,17 @@ void loop()
     // check for user input
     userInterface.handleClientRequest();
     powered = userInterface.getPowerState();
+#if defined(ESP32) || defined(ESP8266)
+    if (userInterface.getOtaState())
+    {
+        ArduinoOTA.handle();
+    }
+#elif defined(ARDUINO_ARCH_SAMD)
+    if (userInterface.getOtaState())
+    {
+        ArduinoOTA.poll();
+    }
+#endif
     if (powered)
     {
         // get settings

@@ -6,6 +6,8 @@ WebVisu::WebVisu(){};
 void WebVisu::init()
 {
     WebVisu::powerState = false;
+    WebVisu::otaEnabled = false;
+    WebVisu::otaStartTime = 0;
     WebVisu::mode = 1;
     WebVisu::brightness = 255;
     WebVisu::speed = 30;
@@ -30,31 +32,24 @@ bool WebVisu::connectToWiFi(const char ssid[80], const char password[80], IPAddr
 
     if (ip != IPAddress(0, 0, 0, 0))
     {
-        #ifdef ESP8266
-            WiFi.config(ip, IPAddress(255, 255, 255, 0), IPAddress(192, 168, 1, 1));
-        #elif defined(ESP32)
-            WiFi.config(ip, IPAddress(255, 255, 255, 0), IPAddress(192, 168, 1, 1));
-        #elif defined(ARDUINO_ARCH_SAMD)
-            WiFi.config(ip);
-        #endif
+#if defined(ESP32) || defined(ESP8266)
+        WiFi.config(ip, IPAddress(255, 255, 255, 0), IPAddress(192, 168, 1, 1));
+#elif defined(ARDUINO_ARCH_SAMD)
+        WiFi.config(ip);
+#endif
     }
     
-    #ifdef ESP8266
+#if defined(ESP32) || defined(ESP8266)
     if (WiFi.status() == WL_NO_SSID_AVAIL)
     {
         return false;
     }
-    #elif defined(ESP32)
-    if (WiFi.status() == WL_NO_SSID_AVAIL)
-    {
-        return false;
-    }
-    #elif defined(ARDUINO_ARCH_SAMD)
+#elif defined(ARDUINO_ARCH_SAMD)
     if (WiFi.status() == WL_NO_MODULE)
     {
         return false;
     }
-    #endif
+#endif
 
     while (status != WL_CONNECTED)
     {
@@ -329,7 +324,7 @@ bool WebVisu::handleClientRequest()
                     client.println("<button type=\"submit\">Apply</button></form></body><hr><footer>Created by DHBeng.<br>");
                     client.println("Source code can be found on <a href=\"https://github.com/DHBeng/HexagonLamp\">GitHub</a>");
                     client.println(".<br>3D model for lamp can be found on <a href=\"https://www.thingiverse.com/thing:4759920\">");
-                    client.println("Thingiverse</a>.</footer></html>");
+                    client.println("Thingiverse</a>.<br><br><form style=\"margin:0\"><button type=\"submit\" name=\"OTA\" style=\"width:auto;height:auto;padding:3px 8px;font-size:11px;font-weight:normal;background-color:#555;\">Enable OTA (300s)</button></form></footer></html>");
                     // ---AUTO GENERATED CODE - END ---
                     break;
                 }
@@ -352,6 +347,11 @@ bool WebVisu::handleClientRequest()
                         if (data[0] == 'P' and data[1] == '=')
                         {
                             WebVisu::powerState = not WebVisu::powerState;
+                        }
+                        else if (data[0] == 'O' and data[1] == 'T' and data[2] == 'A')
+                        {
+                            WebVisu::otaEnabled = true;
+                            WebVisu::otaStartTime = millis();
                         }
                         else if (data[0] == 'M' and data[1] == '=')
                         {
@@ -391,6 +391,19 @@ bool WebVisu::handleClientRequest()
 bool WebVisu::getPowerState()
 {
     return WebVisu::powerState;
+}
+
+bool WebVisu::getOtaState()
+{
+    if (WebVisu::otaEnabled && (millis() - WebVisu::otaStartTime < 300000UL))
+    {
+        return true;
+    }
+    else
+    {
+        WebVisu::otaEnabled = false;
+        return false;
+    }
 }
 
 lampSettings WebVisu::getLampSettings()
