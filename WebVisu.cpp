@@ -312,25 +312,25 @@ bool WebVisu::handleClientRequest()
                     client.print("<label for=\"speed\">Speed</label><input type=\"range\" id=\"speed\" name=\"S\" min=\"10\" max=\"50\" value=\"");
                     client.print(WebVisu::speed);
                     client.println("\" />");
-                    client.print("<label for=\"color\">Color</label><input type=\"color\" id=\"color\" name=\"C\" value=\"#");
                     switch (WebVisu::colorHex)
                     {
                     case 0x0 ... 0xF:
-                        client.print("00000");
+                        client.print("<label for=\"color\">Color</label><input type=\"color\" id=\"color\" name=\"C\" value=\"#00000");
                         break;
                     case 0x1F ... 0xFF:
-                        client.print("0000");
+                        client.print("<label for=\"color\">Color</label><input type=\"color\" id=\"color\" name=\"C\" value=\"#0000");
                         break;
                     case 0x1FF ... 0xFFF:
-                        client.print("000");
+                        client.print("<label for=\"color\">Color</label><input type=\"color\" id=\"color\" name=\"C\" value=\"#000");
                         break;
                     case 0x1FFF ... 0xFFFF:
-                        client.print("00");
+                        client.print("<label for=\"color\">Color</label><input type=\"color\" id=\"color\" name=\"C\" value=\"#00");
                         break;
                     case 0x1FFFF ... 0xFFFFF:
-                        client.print("0");
+                        client.print("<label for=\"color\">Color</label><input type=\"color\" id=\"color\" name=\"C\" value=\"#0");
                         break;
                     case 0x1FFFFF ... 0xFFFFFF:
+                        client.print("<label for=\"color\">Color</label><input type=\"color\" id=\"color\" name=\"C\" value=\"#");
                         break;
                     }
                     client.print(WebVisu::colorHex, HEX);
