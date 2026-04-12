@@ -210,8 +210,10 @@ void setup()
         pixels.show();
 #if defined(ESP32) || defined(ESP8266)
         ArduinoOTA.begin();
+        ArduinoOTA.setHostname(OTA_HOSTNAME);
+        ArduinoOTA.setPassword(OTA_PASSWORD);
 #elif defined(ARDUINO_ARCH_SAMD)
-        ArduinoOTA.begin(WiFi.localIP(), "Lamp", "", InternalStorage);
+        ArduinoOTA.begin(WiFi.localIP(), OTA_HOSTNAME, OTA_PASSWORD, InternalStorage);
 #endif
     }
     else // connection failed
